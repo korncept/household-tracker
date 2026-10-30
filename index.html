@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Household Stock Tracker</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="config.js"></script>
+<script>try{var t=localStorage.getItem("hh_theme");if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1f6f5c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Stock Tracker">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#f7f6f2;--card:#fff;--ink:#1c1c1a;--mut:#6b6a64;--line:#e4e2da;--acc:#1f6f5c;--accfg:#fff;--ok:#2e7d4f;--low:#b7791f;--out:#c0392b;--okb:#e5f3ea;--lowb:#fbf0d9;--outb:#fbe3e0;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme]){color-scheme:dark;--bg:#151514;--card:#1f1f1d;--ink:#eeede8;--mut:#a09f97;--line:#33332f;--acc:#4fb596;--accfg:#08140f;--ok:#6fcf97;--low:#f0b84f;--out:#ff7b6b;--okb:#17301f;--lowb:#352a11;--outb:#3a1a16}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#151514;--card:#1f1f1d;--ink:#eeede8;--mut:#a09f97;--line:#33332f;--acc:#4fb596;--accfg:#08140f;--ok:#6fcf97;--low:#f0b84f;--out:#ff7b6b;--okb:#17301f;--lowb:#352a11;--outb:#3a1a16}
+:root[data-theme="light"]{color-scheme:light}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:680px;margin:0 auto;padding:18px 14px 60px}
+h1{font-size:24px;margin:6px 0 2px}
+h3{font-size:16px;margin:22px 0 8px}
+.sub{color:var(--mut);margin:0 0 10px;font-size:14px}
+.who{font-size:14px;color:var(--mut);margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.who b{color:var(--ink)}
+.sum{display:flex;gap:8px;margin-bottom:14px}
+.sum div{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+.sum b{display:block;font-size:22px}
+.sum span{font-size:12px;color:var(--mut)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px}
+.chip{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:99px;padding:6px 12px;font:inherit;font-size:14px;cursor:pointer}
+.chip.on{background:var(--acc);color:var(--accfg);border-color:var(--acc)}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.name{font-weight:600}
+.cat{font-size:12px;color:var(--mut)}
+.qty{font-size:26px;font-weight:700;margin-top:6px}
+.qty small{font-size:14px;font-weight:500;color:var(--mut)}
+.badge{font-size:12px;font-weight:600;border-radius:99px;padding:3px 9px;white-space:nowrap}
+.ok{background:var(--okb);color:var(--ok)}.low{background:var(--lowb);color:var(--low)}.out{background:var(--outb);color:var(--out)}
+.bar{height:6px;background:var(--line);border-radius:9px;margin:10px 0 8px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:9px}
+.meta{font-size:13px;color:var(--mut);margin-top:4px}
+.meta b{color:var(--ink)}
+.acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+button{font:inherit;cursor:pointer}
+.btn{background:var(--acc);color:var(--accfg);border:0;border-radius:9px;padding:8px 12px;font-size:14px;font-weight:600}
+.ghost{background:none;border:1px solid var(--line);color:var(--ink);border-radius:9px;padding:7px 10px;font-size:14px}
+details{margin-top:8px;font-size:13px;color:var(--mut)}
+summary{cursor:pointer}
+.log{padding:3px 0;border-bottom:1px solid var(--line)}
+form{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:14px;display:grid;gap:8px}
+form h2,.box h2{margin:0;font-size:16px}
+input,select{font:inherit;width:100%;padding:9px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.empty{text-align:center;color:var(--mut);padding:24px 8px}
+.foot{font-size:12px;color:var(--mut);text-align:center;margin-top:18px}
+.foot button{margin:4px}
+#sheet{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:20}
+#sheet[hidden]{display:none}
+.box{background:var(--card);width:100%;max-width:680px;border-radius:18px 18px 0 0;padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:10px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+#theme{font-size:14px;width:auto;min-height:44px;border-radius:12px;flex:none;cursor:pointer}
+html{-webkit-text-size-adjust:100%}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+@media (hover:hover){.chip:hover,.ghost:hover{border-color:var(--acc)}.btn:hover{filter:brightness(1.08)}}
+@media (pointer:coarse){.btn,.ghost,.chip{min-height:40px}}
+@media (min-width:700px){
+  .chips{flex-wrap:wrap;overflow:visible}
+  #sheet{align-items:center}
+  .box{border-radius:18px;max-width:440px;padding-bottom:16px}
+}
+@media (min-width:900px){
+  main{max-width:1000px;padding:28px 24px 70px}
+  #list{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+  .item{margin-bottom:0}
+  #list .empty{grid-column:1/-1}
+  #f{grid-template-columns:repeat(2,1fr)}
+  #f h2,#f .three,#f .two:last-of-type,#f #name{grid-column:1/-1}
+}
+@media (max-width:380px){.three{grid-template-columns:1fr 1fr}.three #lowAt{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<main>
+<header class="top"><div><h1>Household Stock Tracker</h1>
+<p class="sub">Log what’s left, see who used what, and spot what’s about to run out.</p></div>
+<select id="theme" aria-label="Colour theme"><option value="auto">🖥️ System</option><option value="light">☀️ Light</option><option value="dark">🌙 Dark</option></select></header>
+
+<form id="nf" hidden><h2>What’s your name?</h2>
+<input id="nm" placeholder="e.g. Stephen" maxlength="30" autocomplete="off">
+<button class="btn" type="submit">Save name</button></form>
+<div class="who" id="whoBar" hidden>Logging as <b id="who"></b><button class="ghost" id="chn">Change</button></div>
+
+<form id="hf" hidden><h2>Join your household</h2>
+<input id="code" placeholder="Household code (same on all phones)" maxlength="40" autocapitalize="off" autocomplete="off">
+<div class="two"><button class="btn" type="submit">Join</button><button class="ghost" type="button" id="mk">Create new code</button></div>
+<p class="sub" id="hmsg" style="margin:0"></p></form>
+
+<div class="sum">
+<div><b id="nOut">0</b><span>Out / due</span></div>
+<div><b id="nLow">0</b><span>Running low</span></div>
+<div><b id="nOk">0</b><span>Fine</span></div>
+</div>
+
+<form id="f">
+<h2 id="fh">Add an item</h2>
+<input id="name" placeholder="Item (e.g. Toilet paper, Cooking gas)" required maxlength="60">
+<div class="two"><select id="cat"></select><input id="note" placeholder="Note / size (optional)" maxlength="60"></div>
+<div class="three"><input id="qty" type="number" min="0" step="any" placeholder="In stock now"><input id="unit" placeholder="Unit (rolls)" maxlength="15"><input id="lowAt" type="number" min="0" step="any" placeholder="Low at…"></div>
+<div class="two"><input id="lasts" type="number" min="1" step="1" placeholder="One purchase lasts…" required>
+<select id="per"><option value="1">days</option><option value="7">weeks</option><option value="30">months</option></select></div>
+<div class="two"><button class="btn" type="submit" id="sb">Add item</button><button class="ghost" type="button" id="cancel" hidden>Cancel</button></div>
+</form>
+
+<div class="chips" id="chips"></div>
+<div id="list"></div>
+<h3 id="ah" hidden>Recent activity</h3>
+<div id="act"></div>
+<div class="foot" id="foot"></div>
+</main>
+
+<div id="sheet" hidden><div class="box">
+<h2 id="sh"></h2>
+<input id="sq" type="number" min="0" step="any" placeholder="How many left?">
+<input id="sn" placeholder="Note (optional)" maxlength="80">
+<div class="two"><button class="btn" id="ss">Save</button><button class="ghost" id="sx">Cancel</button></div>
+</div></div>
+
+<script>
+const CATS=["Food & Pantry","Cleaning","Laundry","Toiletries & Personal Care","Utilities","Kitchen & Paper","Health & Medicine","Other"];
+const DAY=86400000,RANK={out:0,low:1,ok:2};
+let items=[],filter="All",editing=null,col=null,unsub=null,pending=false,db=null,code=null,name=null,sheetId=null,mode="update";
+try{code=localStorage.getItem("hh_code");name=localStorage.getItem("hh_name")}catch(e){}
+if(typeof firebase!=="undefined"&&window.FIREBASE_CONFIG&&FIREBASE_CONFIG.projectId){
+  try{firebase.initializeApp(FIREBASE_CONFIG);db=firebase.firestore();db.enablePersistence({synchronizeTabs:true}).catch(()=>{})}catch(e){db=null}
+}
+const $=id=>document.getElementById(id);
+$("cat").innerHTML=CATS.map(c=>`<option>${c}</option>`).join("");
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const uid=()=>"i"+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+const isN=v=>typeof v==="number"&&!isNaN(v);
+
+function statusText(){
+  if(!db)return"Saved on this device only.";
+  if(!col)return"Not synced yet. Join a household code.";
+  if(!navigator.onLine)return pending?"Offline. Changes will sync when you’re back online.":"Offline. Showing saved data.";
+  return pending?"Syncing…":"Synced ✓ · code: "+esc(code);
+}
+function loadLocal(){try{items=JSON.parse(localStorage.getItem("hh_items")||"[]")}catch(e){items=[]}}
+function saveLocal(){try{localStorage.setItem("hh_items",JSON.stringify(items))}catch(e){}}
+function patch(id,f,entry){
+  if(col){
+    const u={...f};if(entry)u.log=firebase.firestore.FieldValue.arrayUnion(entry);
+    col.doc(id).set(u,{merge:true}).catch(()=>{});
+  }else{
+    const i=items.findIndex(x=>x.id===id),o=i>=0?items[i]:{id},n={...o,...f};
+    if(entry)n.log=[...(o.log||[]),entry];
+    i>=0?items[i]=n:items.push(n);saveLocal();render();
+  }
+}
+function del(id){
+  if(col)col.doc(id).delete().catch(()=>{});
+  else{items=items.filter(x=>x.id!==id);saveLocal();render()}
+}
+function info(it){
+  const left=it.lasts-(Date.now()-it.restocked)/DAY;
+  let st=left<=0?"out":(left<=Math.max(3,it.lasts*0.2)?"low":"ok");
+  if(isN(it.qty)){
+    if(it.qty<=0)st="out";
+    else if(isN(it.lowAt)&&it.qty<=it.lowAt&&st==="ok")st="low";
+  }
+  return{left,st,pct:Math.max(0,Math.min(100,left/it.lasts*100))};
+}
+function ago(t){
+  const m=Math.round((Date.now()-t)/60000);
+  if(m<1)return"just now";if(m<60)return m+" min ago";
+  const h=Math.round(m/60);if(h<24)return h+" hr"+(h>1?"s":"")+" ago";
+  const d=Math.round(h/24);return d<7?d+" day"+(d>1?"s":"")+" ago":new Date(t).toLocaleDateString(undefined,{day:"numeric",month:"short"});
+}
+function eText(e,unit){
+  const u=unit?" "+esc(unit):"";
+  if(e.type==="restock")return"restocked"+(isN(e.qty)?` · now ${e.qty}${u}`:"");
+  return`${e.qty}${u} left`+(isN(e.prev)&&e.prev>e.qty?` (used ${+(e.prev-e.qty).toFixed(2)})`:"");
+}
+const fmtLasts=d=>d%30===0?`${d/30} mo`:d%7===0?`${d/7} wk`:`${d} d`;
+const WORD={ok:"Fine",low:"Running low",out:"Out / due"};
+
+function render(){
+  const all=items.map(i=>({...i,...info(i)}));
+  $("nOut").textContent=all.filter(i=>i.st==="out").length;
+  $("nLow").textContent=all.filter(i=>i.st==="low").length;
+  $("nOk").textContent=all.filter(i=>i.st==="ok").length;
+  $("whoBar").hidden=!name;$("who").textContent=name||"";
+  const used=["All",...CATS.filter(c=>items.some(i=>i.cat===c))];
+  if(!used.includes(filter))filter="All";
+  $("chips").innerHTML=used.map(c=>`<button class="chip ${c===filter?"on":""}" data-c="${esc(c)}">${esc(c)}</button>`).join("");
+  const shown=all.filter(i=>filter==="All"||i.cat===filter).sort((a,b)=>RANK[a.st]-RANK[b.st]||a.left-b.left);
+  $("list").innerHTML=shown.length?shown.map(i=>{
+    const log=(i.log||[]).slice().sort((a,b)=>b.at-a.at),last=log[0];
+    const d=Math.ceil(i.left);
+    const tl=i.left<=0?"Timeline says it’s due":`About ${d} day${d>1?"s":""} left by timeline`;
+    return`<div class="item">
+    <div class="row"><div><div class="name">${esc(i.name)}</div><div class="cat">${esc(i.cat)}${i.note?" · "+esc(i.note):""}</div></div><span class="badge ${i.st}">${WORD[i.st]}</span></div>
+    ${isN(i.qty)?`<div class="qty">${i.qty} <small>${esc(i.unit||"")} left</small></div>`:""}
+    <div class="bar"><i style="width:${i.pct}%;background:var(--${i.st})"></i></div>
+    <div class="meta">${tl} · lasts ~${fmtLasts(i.lasts)}</div>
+    ${last?`<div class="meta">Last: <b>${esc(last.by)}</b> · ${eText(last,i.unit)} · ${ago(last.at)}${last.note?" · “"+esc(last.note)+"”":""}</div>`:""}
+    <div class="acts"><button class="btn" data-u="${i.id}">Log stock</button><button class="ghost" data-r="${i.id}">Restocked</button><button class="ghost" data-e="${i.id}">Edit</button><button class="ghost" data-d="${i.id}" aria-label="Delete">✕</button></div>
+    ${log.length?`<details><summary>History (${log.length})</summary>${log.slice(0,15).map(e=>`<div class="log"><b>${esc(e.by)}</b> · ${eText(e,i.unit)} · ${ago(e.at)}${e.note?" · “"+esc(e.note)+"”":""}</div>`).join("")}</details>`:""}
+  </div>`}).join(""):`<div class="empty">${items.length?"Nothing in this category.":"No items yet. Add one above, or load a starter list."}${items.length?"":'<br><br><button class="btn" id="seed">Load starter list</button>'}</div>`;
+  const feed=items.flatMap(i=>(i.log||[]).map(e=>({...e,item:i.name,unit:i.unit}))).sort((a,b)=>b.at-a.at).slice(0,15);
+  $("ah").hidden=!feed.length;
+  $("act").innerHTML=feed.map(e=>`<div class="log meta"><b>${esc(e.by)}</b> · ${esc(e.item)}: ${eText(e,e.unit)} · ${ago(e.at)}</div>`).join("");
+  $("foot").innerHTML=statusText()+'<br><button class="ghost" id="chg">Household code</button><button class="ghost" id="exp">Export backup</button><button class="ghost" id="imp">Import backup</button><input type="file" id="file" accept=".json" hidden>';
+}
+
+/* theme: System (default), Light or Dark */
+const sysDark=matchMedia("(prefers-color-scheme:dark)");
+const themePref=()=>{try{return localStorage.getItem("hh_theme")||"system"}catch(e){return"system"}};
+function applyTheme(){
+  const p=themePref(),r=document.documentElement;
+  if(p==="light"||p==="dark")r.dataset.theme=p;else delete r.dataset.theme;
+  const dark=p==="dark"||(p!=="light"&&sysDark.matches);
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=dark?"#151514":"#1f6f5c";
+  $("theme").value=(p==="light"||p==="dark")?p:"auto";
+}
+$("theme").onchange=()=>{const v=$("theme").value;try{v==="auto"?localStorage.removeItem("hh_theme"):localStorage.setItem("hh_theme",v)}catch(e){}applyTheme()};
+sysDark.addEventListener&&sysDark.addEventListener("change",applyTheme);
+applyTheme();
+addEventListener("keydown",e=>{if(e.key==="Escape")$("sheet").hidden=true});
+
+/* name */
+function needName(){$("nf").hidden=false;scrollTo({top:0,behavior:"smooth"});$("nm").focus()}
+$("nf").onsubmit=e=>{e.preventDefault();const n=$("nm").value.trim();if(!n)return;name=n;try{localStorage.setItem("hh_name",n)}catch(x){}$("nf").hidden=true;render()};
+$("chn").onclick=()=>{$("nm").value=name||"";needName()};
+
+/* stock sheet */
+function openSheet(id,m){
+  if(!name){needName();return}
+  const it=items.find(x=>x.id===id);if(!it)return;
+  sheetId=id;mode=m;
+  $("sh").textContent=m==="restock"?`Restocked ${it.name}: how many do you have now?`:`${it.name}: how many ${it.unit||""} left?`;
+  $("sq").value=isN(it.qty)&&m==="update"?it.qty:"";$("sn").value="";
+  $("sheet").hidden=false;$("sq").focus();
+}
+$("sx").onclick=()=>$("sheet").hidden=true;
+$("ss").onclick=()=>{
+  const it=items.find(x=>x.id===sheetId);if(!it)return;
+  const q=$("sq").value===""?null:+$("sq").value;
+  if(mode==="update"&&q===null){$("sq").focus();return}
+  const entry={by:name,at:Date.now(),type:mode};
+  const note=$("sn").value.trim();if(note)entry.note=note;
+  if(q!==null)entry.qty=q;
+  if(mode==="update"&&isN(it.qty))entry.prev=it.qty;
+  const f={};if(q!==null)f.qty=q;if(mode==="restock")f.restocked=Date.now();
+  patch(it.id,f,entry);$("sheet").hidden=true;
+};
+
+/* list actions */
+$("chips").onclick=e=>{const c=e.target.dataset.c;if(c){filter=c;render()}};
+$("list").onclick=e=>{
+  const t=e.target;
+  if(t.id==="seed"){seed();return}
+  if(t.dataset.u)return openSheet(t.dataset.u,"update");
+  if(t.dataset.r)return openSheet(t.dataset.r,"restock");
+  const id=t.dataset.e||t.dataset.d,it=items.find(x=>x.id===id);if(!it)return;
+  if(t.dataset.d){if(t.dataset.armed)del(id);else{t.dataset.armed=1;t.textContent="Sure?";setTimeout(()=>{t.dataset.armed="";t.textContent="✕"},2500)}}
+  if(t.dataset.e){
+    editing=id;$("name").value=it.name;$("cat").value=it.cat;$("note").value=it.note||"";
+    $("qty").value=isN(it.qty)?it.qty:"";$("unit").value=it.unit||"";$("lowAt").value=isN(it.lowAt)?it.lowAt:"";
+    const u=it.lasts%30===0?30:it.lasts%7===0?7:1;$("per").value=u;$("lasts").value=it.lasts/u;
+    $("fh").textContent="Edit item";$("sb").textContent="Save changes";$("cancel").hidden=false;scrollTo({top:0,behavior:"smooth"});
+  }
+};
+function reset(){editing=null;$("f").reset();$("fh").textContent="Add an item";$("sb").textContent="Add item";$("cancel").hidden=true}
+$("cancel").onclick=reset;
+$("f").onsubmit=e=>{
+  e.preventDefault();
+  if(!name){needName();return}
+  const old=items.find(x=>x.id===editing);
+  const q=$("qty").value===""?null:+$("qty").value,la=$("lowAt").value===""?null:+$("lowAt").value;
+  const f={name:$("name").value.trim(),cat:$("cat").value,note:$("note").value.trim(),unit:$("unit").value.trim(),lowAt:la,
+    lasts:Math.max(1,Math.round(+$("lasts").value*+$("per").value))};
+  let entry=null;
+  if(q!==null&&(!old||q!==old.qty)){f.qty=q;entry={by:name,at:Date.now(),type:"update",qty:q};if(old&&isN(old.qty))entry.prev=old.qty}
+  if(!old)f.restocked=Date.now();
+  patch(old?old.id:uid(),f,entry);reset();
+};
+function seed(){
+  [["Toilet paper","Kitchen & Paper",21,"rolls"],["Cooking gas","Utilities",42,"kg"],["Dish soap","Cleaning",30,"bottles"],["Laundry detergent","Laundry",30,"packs"],["Rice","Food & Pantry",30,"kg"],["Toothpaste","Toiletries & Personal Care",45,"tubes"],["Bath soap","Toiletries & Personal Care",21,"bars"],["Bleach / disinfectant","Cleaning",45,"bottles"]]
+  .forEach(([n,c,l,u])=>patch(uid(),{name:n,cat:c,note:"",unit:u,lowAt:null,lasts:l,restocked:Date.now()}));
+}
+
+/* backup */
+document.addEventListener("click",e=>{
+  if(e.target.id==="exp"){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(items)],{type:"application/json"}));a.download="household-stock-"+new Date().toISOString().slice(0,10)+".json";a.click()}
+  if(e.target.id==="imp")$("file").click();
+  if(e.target.id==="chg"&&db){try{localStorage.removeItem("hh_code")}catch(x){}if(unsub)unsub();unsub=null;col=null;code=null;loadLocal();render();$("hf").hidden=false}
+});
+document.addEventListener("change",e=>{
+  if(e.target.id!=="file"||!e.target.files[0])return;
+  const r=new FileReader();
+  r.onload=()=>{try{const n=JSON.parse(r.result);if(!Array.isArray(n))throw 0;n.forEach(x=>{if(x&&x.id&&x.name){const{id,...rest}=x;if(col)col.doc(id).set(rest,{merge:true}).catch(()=>{});else patch(id,rest)}})}catch(err){alert("That file isn’t a valid backup.")}};
+  r.readAsText(e.target.files[0]);
+});
+
+/* sync */
+function startSync(c){
+  if(unsub)unsub();
+  col=db.collection("households").doc(c).collection("items");
+  try{JSON.parse(localStorage.getItem("hh_items")||"[]").forEach(x=>{if(x&&x.id){const{id,...rest}=x;col.doc(id).set(rest,{merge:true}).catch(()=>{})}});localStorage.removeItem("hh_items")}catch(e){}
+  unsub=col.onSnapshot({includeMetadataChanges:true},s=>{items=s.docs.map(d=>({...d.data(),id:d.id}));pending=s.metadata.hasPendingWrites;render()},()=>{});
+}
+$("hf").onsubmit=e=>{e.preventDefault();const c=$("code").value.trim().toLowerCase().replace(/[^a-z0-9-]/g,"");
+  if(c.length<6){$("hmsg").textContent="Use at least 6 letters or numbers.";return}
+  code=c;try{localStorage.setItem("hh_code",c)}catch(x){}$("hf").hidden=true;startSync(c)};
+$("mk").onclick=()=>{$("code").value=Array.from(crypto.getRandomValues(new Uint8Array(10)),b=>"abcdefghjkmnpqrstuvwxyz23456789"[b%31]).join("");$("hmsg").textContent="Write this code down and enter it on the other phones."};
+addEventListener("online",render);addEventListener("offline",render);
+loadLocal();render();
+if(!name)$("nf").hidden=false;
+if(db){code?startSync(code):($("hf").hidden=false)}
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+setInterval(render,60000);
+</script>
+</body>
+</html>
